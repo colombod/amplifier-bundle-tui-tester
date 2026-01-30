@@ -1,160 +1,157 @@
-# TUI Tester Bundle
+# Amplifier TUI Tester Bundle
 
-Test Terminal User Interface (TUI) applications with AI-assisted visual analysis.
+**AI-assisted testing for Terminal User Interface applications**
 
-## Overview
+Test TUI applications by spawning them in headless terminals, driving interactions, and capturing screenshots for AI-powered visual analysis.
 
-This bundle provides capabilities for programmatically testing TUI applications:
+## What Is TUI Testing?
 
-- **Spawn** TUI apps in headless terminal sessions
+TUI Testing with Amplifier lets you verify terminal-based applications:
+
+- **Spawn** TUI apps in isolated headless terminal sessions
 - **Drive** interactions via keystrokes (navigation, input, special keys)
 - **Capture** terminal state as text and rendered screenshots
 - **Analyze** with AI vision to identify visual/UX issues
 
-Perfect for testing applications built with Textual, urwid, Rich, or any terminal-based UI.
+**Use cases:**
+
+- Visual regression testing for Textual/urwid/Rich applications
+- Verifying keyboard navigation and accessibility
+- Testing layouts at different terminal sizes
+- Automated screenshot documentation
+- CI/CD integration for TUI apps
+
+## Components
+
+This bundle provides:
+
+| Component | Description |
+|-----------|-------------|
+| **tool-tui-terminal** | Tool for spawning, driving, and capturing TUI applications |
+| **tui-test-analyst** | Agent for comprehensive visual analysis and issue identification |
+| **design-intelligence-enhanced** | AI-powered design evaluation (included dependency) |
 
 ## Installation
 
-Add to your bundle's includes:
+### Run Directly
+
+```bash
+amplifier run --bundle git+https://github.com/colombod/amplifier-bundle-tui-tester@main
+```
+
+### Include in Your Bundle
+
+Add to your bundle's `includes:` section:
 
 ```yaml
 includes:
-  - bundle: git+https://github.com/yourusername/amplifier-bundle-tui-tester@main
-```
-
-Or use directly with Amplifier:
-
-```bash
-amplifier run --bundle tui-tester
+  - bundle: git+https://github.com/colombod/amplifier-bundle-tui-tester@main
 ```
 
 ## Quick Start
 
-```python
-# 1. Spawn a TUI application
-result = tui_terminal(operation="spawn", command="python my_tui_app.py")
-session_id = result["session_id"]
-
-# 2. Send keystrokes
-tui_terminal(operation="send_keys", session_id=session_id, keys="hello{ENTER}")
-
-# 3. Navigate with arrow keys
-tui_terminal(operation="send_keys", session_id=session_id, keys="{DOWN}{DOWN}{ENTER}")
-
-# 4. Capture current state (text + screenshot)
-capture = tui_terminal(operation="capture", session_id=session_id)
-# Returns: {text, ansi, image_path}
-
-# 5. Clean up
-tui_terminal(operation="close", session_id=session_id)
-```
-
-## Operations
-
-| Operation | Description | Required Params |
-|-----------|-------------|-----------------|
-| `spawn` | Start TUI app in terminal | `command` |
-| `send_keys` | Send keystrokes | `session_id`, `keys` |
-| `capture` | Get text + screenshot | `session_id` |
-| `close` | End session | `session_id` |
-| `list` | List active sessions | - |
-
-## Special Keys
-
-Use curly braces for special keys:
+### Test a TUI Application
 
 ```
-{ENTER}     - Enter/Return
-{TAB}       - Tab
-{ESC}       - Escape
-{BACKSPACE} - Backspace
+Spawn my Textual app with command: uv run my-tui-app
+```
 
-{UP}, {DOWN}, {LEFT}, {RIGHT} - Arrow keys
-{HOME}, {END}, {PGUP}, {PGDN} - Navigation
+### Navigate and Capture
 
-{CTRL+C}    - Interrupt
-{CTRL+D}    - EOF
-{CTRL+Z}    - Suspend
+```
+Send arrow down three times then Enter, and capture a screenshot
+```
 
-{F1} - {F12} - Function keys
+### Visual Analysis
+
+```
+Analyze the current TUI screen for layout issues and accessibility problems
 ```
 
 ## Agent
 
-Delegate TUI testing tasks to the specialized agent:
+Delegate comprehensive TUI testing to the specialized agent:
 
 ```
-Use tui-tester:tui-test-analyst to test my Textual application for visual issues
+Use tui-tester:tui-test-analyst to test my Textual application for visual issues.
+The app is started with: uv run my-tui-app
 ```
 
 The agent will:
 1. Spawn your application
-2. Navigate through the UI
+2. Navigate through the UI systematically
 3. Capture screenshots at each step
-4. Analyze for visual/UX issues
-5. Provide a detailed report
+4. Analyze for visual/UX issues using design principles
+5. Provide a detailed report with recommendations
 
 ## Use Cases
 
-### Testing Completion Behavior
+### Testing Slash Command Completion
 
-```python
-# Test slash command completion
-tui_terminal(operation="send_keys", session_id=sid, keys="/")
-capture1 = tui_terminal(operation="capture", session_id=sid)
-# Analyze: Are suggestions showing?
-
-tui_terminal(operation="send_keys", session_id=sid, keys="he{TAB}")
-capture2 = tui_terminal(operation="capture", session_id=sid)
-# Analyze: Did completion work correctly?
+```
+Spawn my chat app with: uv run amplifier-tui run
+Then type "/" and capture a screenshot to see if suggestions appear correctly
 ```
 
-### Testing Layout at Different Sizes
+### Testing at Different Terminal Sizes
 
-```python
-# Test small terminal
-small = tui_terminal(operation="spawn", command="python app.py", rows=20, cols=60)
-capture_small = tui_terminal(operation="capture", session_id=small["session_id"])
+```
+Test my app at both 80x24 (standard) and 120x40 (large) terminal sizes,
+comparing the layout differences
+```
 
-# Test large terminal
-large = tui_terminal(operation="spawn", command="python app.py", rows=40, cols=120)
-capture_large = tui_terminal(operation="capture", session_id=large["session_id"])
+### Keyboard Navigation Audit
 
-# Compare layouts
+```
+Test keyboard navigation in my Textual app - verify I can reach all interactive 
+elements using only Tab, arrows, and Enter
 ```
 
 ### Visual Regression Testing
 
-```python
-# Capture baseline
-baseline = tui_terminal(operation="capture", session_id=sid)
-
-# Make changes...
-
-# Capture after changes
-after = tui_terminal(operation="capture", session_id=sid)
-
-# Use vision to compare and identify differences
 ```
+Spawn my app, navigate to the settings screen, capture it, then compare 
+against the baseline screenshot at tests/baseline-settings.png
+```
+
+## Special Keys Reference
+
+When describing interactions, you can reference these special keys:
+
+| Keys | Description |
+|------|-------------|
+| Enter, Return | Submit/confirm |
+| Tab | Next element / trigger completion |
+| Escape | Cancel/close |
+| Arrow keys (Up, Down, Left, Right) | Navigation |
+| Home, End, Page Up, Page Down | Extended navigation |
+| Ctrl+C, Ctrl+D, Ctrl+Z | Interrupt, EOF, Suspend |
+| F1 - F12 | Function keys |
 
 ## Dependencies
 
 This bundle includes:
+
 - **amplifier-foundation** - Core Amplifier capabilities
-- **design-intelligence-enhanced** - AI-powered visual analysis for design evaluation
+- **design-intelligence-enhanced** - AI-powered visual analysis for professional design evaluation
 
-## Requirements
+## Troubleshooting
 
-- Python 3.11+
-- pyte (terminal emulation) - auto-installed
-- Pillow (image rendering) - auto-installed
+**Session not found**
+- Sessions are ephemeral - if the process exited, the session is gone
+- Ask to list active sessions to see what's available
 
-## How It Works
+**Application not responding to keys**
+- Some apps need time to initialize - try waiting before sending keys
+- Check if the app requires specific environment variables
 
-1. **Terminal Emulation**: Uses `pyte` to emulate a VT100 terminal
-2. **Process Control**: Uses Python's `pty` module to spawn processes in pseudo-terminals
-3. **Image Rendering**: Uses PIL to render terminal state to PNG images
-4. **Headless Operation**: No X11 or display required - works in CI/CD
+**Screenshot looks wrong**
+- Verify terminal size matches what your app expects
+- Some apps detect terminal capabilities - headless mode may affect rendering
+
+## Contributing
+
+This project welcomes contributions and suggestions.
 
 ## License
 
