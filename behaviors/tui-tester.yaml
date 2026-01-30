@@ -5,7 +5,7 @@ bundle:
 
 tools:
   - module: tool-tui-tester
-    source: ./modules/tool-tui-tester
+    source: ../modules/tool-tui-tester
     config:
       session_dir: ~/.amplifier/tui-sessions
       session_timeout_minutes: 30

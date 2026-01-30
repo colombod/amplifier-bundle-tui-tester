@@ -9,7 +9,8 @@ Provides terminal session management for testing TUI applications:
 
 from typing import Any
 
-from amplifier_core.modules import Tool, ToolResult
+from amplifier_core.interfaces import Tool
+from amplifier_core.models import ToolResult
 
 from .keys import parse_keys
 from .session_manager import SessionManager
@@ -98,9 +99,9 @@ class TUITerminalTool(Tool):
             "required": ["operation"],
         }
 
-    async def execute(self, **kwargs: Any) -> ToolResult:
+    async def execute(self, input: dict[str, Any]) -> ToolResult:
         """Execute a TUI terminal operation."""
-        operation = kwargs.get("operation")
+        operation = input.get("operation")
 
         if not operation:
             return ToolResult(
@@ -112,13 +113,13 @@ class TUITerminalTool(Tool):
 
         try:
             if operation == "spawn":
-                return await self._spawn(manager, kwargs)
+                return await self._spawn(manager, input)
             elif operation == "send_keys":
-                return await self._send_keys(manager, kwargs)
+                return await self._send_keys(manager, input)
             elif operation == "capture":
-                return await self._capture(manager, kwargs)
+                return await self._capture(manager, input)
             elif operation == "close":
-                return await self._close(manager, kwargs)
+                return await self._close(manager, input)
             elif operation == "list":
                 return await self._list(manager)
             else:
@@ -272,6 +273,16 @@ class TUITerminalTool(Tool):
 
 
 # Module mount point
-def mount() -> list[Tool]:
-    """Mount the TUI terminal tool."""
-    return [TUITerminalTool()]
+async def mount(coordinator, config: dict) -> Tool:
+    """Mount the TUI terminal tool.
+
+    Args:
+        coordinator: Module coordinator for registration
+        config: Configuration from bundle (session_dir, timeout, etc.)
+
+    Returns:
+        The mounted TUI terminal tool instance
+    """
+    tool = TUITerminalTool()
+    await coordinator.mount("tools", tool, name="tui_terminal")
+    return tool

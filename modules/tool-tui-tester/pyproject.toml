@@ -34,7 +34,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/amplifier_module_tool_tui_tester"]
+packages = ["amplifier_module_tool_tui_tester"]
 
 [tool.ruff]
 line-length = 100
