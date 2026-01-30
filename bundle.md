@@ -8,6 +8,10 @@ includes:
   - bundle: git+https://github.com/microsoft/amplifier-foundation@main
   - bundle: git+https://github.com/anderlpz/amplifier-bundle-design-intelligence-enhanced@main
   - bundle: tui-tester:behaviors/tui-tester
+
+agents:
+  include:
+    - tui-tester:agents/tui-test-analyst
 ---
 
 # TUI Tester
@@ -41,7 +45,7 @@ tui_terminal(operation="close", session_id=session_id)
 
 ## Agent
 
-Delegate TUI testing tasks to **tui-tester:tui-test-analyst** for comprehensive testing workflows with visual analysis.
+Delegate TUI testing tasks to **tui-tester:agents/tui-test-analyst** for comprehensive testing workflows with visual analysis.
 
 ---
 

@@ -13,7 +13,7 @@ tools:
 
 agents:
   include:
-    - tui-tester:tui-test-analyst
+    - tui-tester:agents/tui-test-analyst
 
 context:
   include:
