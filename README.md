@@ -1,56 +1,39 @@
-# Amplifier TUI Tester Bundle
+# Amplifier Bundle: TUI Tester
 
-**AI-assisted testing for Terminal User Interface applications**
+**AI-assisted testing for Terminal User Interface applications.**
 
-Test TUI applications by spawning them in headless terminals, driving interactions, and capturing screenshots for AI-powered visual analysis.
-
-## What Is TUI Testing?
-
-TUI Testing with Amplifier lets you verify terminal-based applications:
-
-- **Spawn** TUI apps in isolated headless terminal sessions
-- **Drive** interactions via keystrokes (navigation, input, special keys)
-- **Capture** terminal state as text and rendered screenshots
-- **Analyze** with AI vision to identify visual/UX issues
-
-**Use cases:**
-
-- Visual regression testing for Textual/urwid/Rich applications
-- Verifying keyboard navigation and accessibility
-- Testing layouts at different terminal sizes
-- Automated screenshot documentation
-- CI/CD integration for TUI apps
-
-## Components
-
-This bundle provides:
-
-| Component | Description |
-|-----------|-------------|
-| **tool-tui-terminal** | Tool for spawning, driving, and capturing TUI applications |
-| **tui-test-analyst** | Agent for comprehensive visual analysis and issue identification |
-| **design-intelligence-enhanced** | AI-powered design evaluation (included dependency) |
+Spawn TUI apps in headless terminals, drive interactions, capture screenshots, and analyze with AI vision.
 
 ## Installation
 
-### Run Directly
-
 ```bash
-amplifier run --bundle git+https://github.com/colombod/amplifier-bundle-tui-tester@main
+amplifier bundle add git+https://github.com/colombod/amplifier-bundle-tui-tester@main
+amplifier bundle use tui-tester
 ```
 
-### Include in Your Bundle
+## What's Included
 
-Add to your bundle's `includes:` section:
+### Tool
 
-```yaml
-includes:
-  - bundle: git+https://github.com/colombod/amplifier-bundle-tui-tester@main
-```
+| Tool | Purpose |
+|------|---------|
+| **tui_terminal** | Spawn, drive, and capture TUI applications in headless terminals |
+
+### Agent
+
+| Agent | Purpose |
+|-------|---------|
+| `tui-tester:tui-test-analyst` | Comprehensive visual analysis and issue identification |
+
+### Dependencies
+
+This bundle includes:
+- **amplifier-foundation** - Core Amplifier capabilities
+- **design-intelligence-enhanced** - AI-powered visual analysis for professional design evaluation
 
 ## Quick Start
 
-### Test a TUI Application
+### Spawn and Test a TUI Application
 
 ```
 Spawn my Textual app with command: uv run my-tui-app
@@ -65,24 +48,8 @@ Send arrow down three times then Enter, and capture a screenshot
 ### Visual Analysis
 
 ```
-Analyze the current TUI screen for layout issues and accessibility problems
+Use tui-tester:tui-test-analyst to analyze my TUI for layout issues and accessibility problems
 ```
-
-## Agent
-
-Delegate comprehensive TUI testing to the specialized agent:
-
-```
-Use tui-tester:tui-test-analyst to test my Textual application for visual issues.
-The app is started with: uv run my-tui-app
-```
-
-The agent will:
-1. Spawn your application
-2. Navigate through the UI systematically
-3. Capture screenshots at each step
-4. Analyze for visual/UX issues using design principles
-5. Provide a detailed report with recommendations
 
 ## Use Cases
 
@@ -128,12 +95,22 @@ When describing interactions, you can reference these special keys:
 | Ctrl+C, Ctrl+D, Ctrl+Z | Interrupt, EOF, Suspend |
 | F1 - F12 | Function keys |
 
-## Dependencies
+## Directory Structure
 
-This bundle includes:
-
-- **amplifier-foundation** - Core Amplifier capabilities
-- **design-intelligence-enhanced** - AI-powered visual analysis for professional design evaluation
+```
+amplifier-bundle-tui-tester/
+├── bundle.md                 # Thin entry point
+├── behaviors/
+│   └── tui-tester.yaml       # Tool + agent composition
+├── agents/
+│   └── tui-test-analyst.md   # Visual analysis agent
+├── context/
+│   └── tui-testing-instructions.md
+├── examples/
+│   └── test-textual-app.md
+└── modules/
+    └── tool-tui-tester/      # Terminal emulation tool
+```
 
 ## Troubleshooting
 
