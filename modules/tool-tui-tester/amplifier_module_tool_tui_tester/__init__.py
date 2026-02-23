@@ -4,9 +4,11 @@ Provides terminal session management for testing TUI applications:
 - Spawn TUI apps in pseudo-terminals
 - Send keystrokes and special keys
 - Capture terminal state as text and screenshots
+- Resize terminal to test responsive layouts
 - Manage session lifecycle
 """
 
+from pathlib import Path
 from typing import Any
 
 from amplifier_core.interfaces import Tool
@@ -20,13 +22,30 @@ __all__ = ["TUITerminalTool", "SessionManager", "mount"]
 
 # Global session manager (lazy initialization)
 _session_manager: SessionManager | None = None
+_session_manager_config: dict[str, Any] = {}
+
+
+def _err(message: str) -> ToolResult:
+    """Return a failed ToolResult with a properly structured error dict."""
+    return ToolResult(success=False, error={"message": message})
 
 
 def get_session_manager() -> SessionManager:
     """Get or create the global session manager."""
     global _session_manager
     if _session_manager is None:
-        _session_manager = SessionManager()
+        cfg = _session_manager_config
+
+        base_dir: Path | None = None
+        raw_dir = cfg.get("session_dir")
+        if raw_dir:
+            base_dir = Path(str(raw_dir)).expanduser()
+
+        _session_manager = SessionManager(
+            base_dir=base_dir,
+            session_timeout_minutes=int(cfg.get("session_timeout_minutes", 30)),
+            default_font_size=int(cfg.get("default_font_size", 14)),
+        )
     return _session_manager
 
 
@@ -46,26 +65,27 @@ class TUITerminalTool(Tool):
             "- spawn: Start a new TUI app session\n"
             "- send_keys: Send keystrokes (supports {ENTER}, {TAB}, {UP}, {CTRL+C})\n"
             "- capture: Capture terminal state as text and screenshot\n"
+            "- resize: Resize terminal to test responsive layouts\n"
             "- close: Close a session\n"
             "- list: List active sessions\n\n"
-            "Example: spawn -> send_keys -> capture -> close\n\n"
+            "Example: spawn -> send_keys -> capture -> resize -> capture -> close\n\n"
             "Special keys: {ENTER}, {TAB}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, "
             "{HOME}, {END}, {CTRL+C}, {CTRL+D}, {F1}-{F12}"
         )
 
     @property
-    def parameters(self) -> dict[str, Any]:
+    def input_schema(self) -> dict[str, Any]:
         return {
             "type": "object",
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["spawn", "send_keys", "capture", "close", "list"],
+                    "enum": ["spawn", "send_keys", "capture", "resize", "close", "list"],
                     "description": "Operation to perform",
                 },
                 "session_id": {
                     "type": "string",
-                    "description": "Session ID (required for send_keys, capture, close)",
+                    "description": "Session ID (required for send_keys, capture, resize, close)",
                 },
                 "command": {
                     "type": "string",
@@ -82,12 +102,12 @@ class TUITerminalTool(Tool):
                 },
                 "rows": {
                     "type": "integer",
-                    "description": "Terminal height in rows (default: 24)",
+                    "description": "Terminal height in rows (default: 24, also used for resize)",
                     "default": 24,
                 },
                 "cols": {
                     "type": "integer",
-                    "description": "Terminal width in columns (default: 80)",
+                    "description": "Terminal width in columns (default: 80, also used for resize)",
                     "default": 80,
                 },
                 "env": {
@@ -104,10 +124,7 @@ class TUITerminalTool(Tool):
         operation = input.get("operation")
 
         if not operation:
-            return ToolResult(
-                success=False,
-                error="Missing required parameter: operation",
-            )
+            return _err("Missing required parameter: operation")
 
         manager = get_session_manager()
 
@@ -118,29 +135,22 @@ class TUITerminalTool(Tool):
                 return await self._send_keys(manager, input)
             elif operation == "capture":
                 return await self._capture(manager, input)
+            elif operation == "resize":
+                return await self._resize(manager, input)
             elif operation == "close":
                 return await self._close(manager, input)
             elif operation == "list":
                 return await self._list(manager)
             else:
-                return ToolResult(
-                    success=False,
-                    error=f"Unknown operation: {operation}",
-                )
+                return _err(f"Unknown operation: {operation}")
         except Exception as e:
-            return ToolResult(
-                success=False,
-                error=f"Operation {operation} failed: {str(e)}",
-            )
+            return _err(f"Operation {operation} failed: {e}")
 
     async def _spawn(self, manager: SessionManager, kwargs: dict) -> ToolResult:
         """Spawn a new TUI session."""
         command = kwargs.get("command")
         if not command:
-            return ToolResult(
-                success=False,
-                error="Missing required parameter: command",
-            )
+            return _err("Missing required parameter: command")
 
         rows = kwargs.get("rows", 24)
         cols = kwargs.get("cols", 80)
@@ -155,7 +165,7 @@ class TUITerminalTool(Tool):
 
         return ToolResult(
             success=True,
-            data={
+            output={
                 "session_id": session.id,
                 "status": "running" if session.is_alive() else "exited",
                 "rows": rows,
@@ -168,20 +178,14 @@ class TUITerminalTool(Tool):
         """Send keystrokes to a session."""
         session_id = kwargs.get("session_id")
         if not session_id:
-            return ToolResult(
-                success=False,
-                error="Missing required parameter: session_id",
-            )
+            return _err("Missing required parameter: session_id")
 
         keys = kwargs.get("keys", "")
         wait_ms = kwargs.get("wait_ms", 100)
 
         session = manager.get(session_id)
         if not session:
-            return ToolResult(
-                success=False,
-                error=f"Session not found: {session_id}",
-            )
+            return _err(f"Session not found: {session_id}")
 
         # Parse special keys and convert to bytes
         key_bytes = parse_keys(keys)
@@ -191,7 +195,7 @@ class TUITerminalTool(Tool):
 
         return ToolResult(
             success=True,
-            data={
+            output={
                 "status": "sent",
                 "keys_sent": len(key_bytes),
                 "session_alive": session.is_alive(),
@@ -202,23 +206,17 @@ class TUITerminalTool(Tool):
         """Capture terminal state."""
         session_id = kwargs.get("session_id")
         if not session_id:
-            return ToolResult(
-                success=False,
-                error="Missing required parameter: session_id",
-            )
+            return _err("Missing required parameter: session_id")
 
         session = manager.get(session_id)
         if not session:
-            return ToolResult(
-                success=False,
-                error=f"Session not found: {session_id}",
-            )
+            return _err(f"Session not found: {session_id}")
 
         capture = await session.capture()
 
         return ToolResult(
             success=True,
-            data={
+            output={
                 "text": capture["text"],
                 "ansi": capture["ansi"],
                 "image_path": capture["image_path"],
@@ -228,27 +226,47 @@ class TUITerminalTool(Tool):
             },
         )
 
+    async def _resize(self, manager: SessionManager, kwargs: dict) -> ToolResult:
+        """Resize a terminal session."""
+        session_id = kwargs.get("session_id")
+        if not session_id:
+            return _err("Missing required parameter: session_id")
+
+        session = manager.get(session_id)
+        if not session:
+            return _err(f"Session not found: {session_id}")
+
+        rows = kwargs.get("rows", session.rows)
+        cols = kwargs.get("cols", session.cols)
+
+        old_rows, old_cols = session.rows, session.cols
+        session.resize(rows, cols)
+
+        return ToolResult(
+            success=True,
+            output={
+                "status": "resized",
+                "old_size": {"rows": old_rows, "cols": old_cols},
+                "new_size": {"rows": rows, "cols": cols},
+                "session_alive": session.is_alive(),
+            },
+        )
+
     async def _close(self, manager: SessionManager, kwargs: dict) -> ToolResult:
         """Close a session."""
         session_id = kwargs.get("session_id")
         if not session_id:
-            return ToolResult(
-                success=False,
-                error="Missing required parameter: session_id",
-            )
+            return _err("Missing required parameter: session_id")
 
         success = await manager.close(session_id)
 
         if success:
             return ToolResult(
                 success=True,
-                data={"status": "closed", "session_id": session_id},
+                output={"status": "closed", "session_id": session_id},
             )
         else:
-            return ToolResult(
-                success=False,
-                error=f"Session not found: {session_id}",
-            )
+            return _err(f"Session not found: {session_id}")
 
     async def _list(self, manager: SessionManager) -> ToolResult:
         """List active sessions."""
@@ -256,7 +274,7 @@ class TUITerminalTool(Tool):
 
         return ToolResult(
             success=True,
-            data={
+            output={
                 "sessions": [
                     {
                         "session_id": s.id,
@@ -278,11 +296,17 @@ async def mount(coordinator, config: dict) -> Tool:
 
     Args:
         coordinator: Module coordinator for registration
-        config: Configuration from bundle (session_dir, timeout, etc.)
+        config: Configuration from bundle. Supported keys:
+            - session_dir: Base directory for session data
+            - session_timeout_minutes: Auto-cleanup timeout (default: 30)
+            - default_font_size: Font size for screenshots (default: 14)
 
     Returns:
         The mounted TUI terminal tool instance
     """
+    global _session_manager_config
+    _session_manager_config = config or {}
+
     tool = TUITerminalTool()
     await coordinator.mount("tools", tool, name="tui_terminal")
     return tool

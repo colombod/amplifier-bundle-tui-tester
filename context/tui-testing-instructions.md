@@ -7,8 +7,9 @@ You have access to the `tui_terminal` tool for testing Terminal User Interface a
 This capability allows you to:
 1. Launch TUI applications in controlled terminal sessions
 2. Interact with them via keystrokes
-3. Capture their visual state as both text and screenshots
-4. Use AI vision to analyze the visual output and identify issues
+3. Resize the terminal dynamically to test responsive layouts
+4. Capture their visual state as both text and screenshots
+5. Use AI vision to analyze the visual output and identify issues
 
 ## Quick Reference
 
@@ -17,6 +18,7 @@ This capability allows you to:
 | `spawn` | Start a TUI app | `tui_terminal(operation="spawn", command="python app.py")` |
 | `send_keys` | Type or navigate | `tui_terminal(operation="send_keys", session_id="...", keys="hello{ENTER}")` |
 | `capture` | Get text + screenshot | `tui_terminal(operation="capture", session_id="...")` |
+| `resize` | Change terminal size | `tui_terminal(operation="resize", session_id="...", rows=40, cols=120)` |
 | `close` | End session | `tui_terminal(operation="close", session_id="...")` |
 | `list` | Show active sessions | `tui_terminal(operation="list")` |
 
@@ -104,7 +106,7 @@ Capture the current terminal state.
 **Returns:**
 ```json
 {
-  "text": "Plain text content of terminal...",
+  "text": "ANSI-escaped text content of terminal...",
   "ansi": "Content with ANSI escape codes...",
   "image_path": "/home/user/.amplifier/tui-sessions/abc123/capture_001.png",
   "rows": 24,
@@ -112,7 +114,40 @@ Capture the current terminal state.
 }
 ```
 
-The `image_path` points to a PNG screenshot that can be analyzed with vision capabilities.
+The `text` field returns proper ANSI-escaped text preserving colors and formatting (not just plain text). The `image_path` points to a PNG screenshot that can be analyzed with vision capabilities.
+
+### resize
+
+Resize a running terminal session. The new dimensions take effect immediately and a `SIGWINCH` signal is sent to the child process, causing well-behaved TUI applications to detect the size change and re-render their layout.
+
+**Parameters:**
+- `session_id` (required): The session to resize
+- `rows` (optional): New terminal height in rows
+- `cols` (optional): New terminal width in columns
+
+Provide at least one of `rows` or `cols`. Any omitted dimension stays unchanged.
+
+**Returns:**
+```json
+{
+  "session_id": "abc123",
+  "rows": 40,
+  "cols": 120,
+  "status": "resized"
+}
+```
+
+**Examples:**
+```python
+# Resize both dimensions
+tui_terminal(operation="resize", session_id=sid, rows=40, cols=120)
+
+# Resize only width (height stays the same)
+tui_terminal(operation="resize", session_id=sid, cols=60)
+
+# Resize only height (width stays the same)
+tui_terminal(operation="resize", session_id=sid, rows=50)
+```
 
 ### close
 
@@ -164,6 +199,42 @@ after_help = tui_terminal(operation="capture", session_id=session_id)
 tui_terminal(operation="close", session_id=session_id)
 ```
 
+### Responsive Testing Pattern
+
+Test how a TUI application adapts to different terminal sizes by spawning at one size, capturing, resizing, and capturing again.
+
+```python
+# 1. Spawn at a standard desktop size
+result = tui_terminal(operation="spawn", command="python my_app.py", rows=40, cols=120)
+session_id = result["session_id"]
+
+# 2. Wait for initialization
+tui_terminal(operation="send_keys", session_id=session_id, keys="", wait_ms=2000)
+
+# 3. Capture at the initial (large) size
+large = tui_terminal(operation="capture", session_id=session_id)
+# Analyze: baseline layout at 120 cols
+
+# 4. Resize to a narrow terminal
+tui_terminal(operation="resize", session_id=session_id, rows=40, cols=60)
+
+# 5. Give the app a moment to re-render
+tui_terminal(operation="send_keys", session_id=session_id, keys="", wait_ms=500)
+
+# 6. Capture at the narrow size
+narrow = tui_terminal(operation="capture", session_id=session_id)
+# Analyze: does the layout adapt? Any truncation or overlap?
+
+# 7. Resize to a very small terminal
+tui_terminal(operation="resize", session_id=session_id, rows=15, cols=40)
+tui_terminal(operation="send_keys", session_id=session_id, keys="", wait_ms=500)
+small = tui_terminal(operation="capture", session_id=session_id)
+# Analyze: minimum viable size — is the app still usable?
+
+# 8. Clean up
+tui_terminal(operation="close", session_id=session_id)
+```
+
 ### Testing Completion/Suggestions
 
 ```python
@@ -199,6 +270,12 @@ When analyzing captured screenshots, look for:
 - Text overlapping
 - Misaligned columns or rows
 - Scroll indicators not visible when needed
+
+**Responsive Layout Issues:**
+- Elements that overlap or disappear at smaller terminal sizes
+- Content that fails to reflow when width changes
+- Panels that collapse incorrectly after resize
+- Scroll regions that do not adjust to new height
 
 **UX Problems:**
 - Focus/cursor not clearly visible
@@ -247,3 +324,14 @@ For comprehensive TUI testing workflows, delegate to **tui-tester:tui-test-analy
 - Session may have timed out (30 min default)
 - App may have crashed (spawn again)
 - Check list operation to see active sessions
+
+**Resize has no visible effect:**
+- The application may not handle SIGWINCH — capture to check if layout changed
+- Send a no-op keystroke (`keys=""`) after resize to give the app time to re-render
+- Some frameworks need an explicit redraw; try `{CTRL+L}` after resize
+- Verify the app is still running with `list` — a crash during resize leaves a dead session
+
+**Layout looks wrong after resize:**
+- Capture both before and after to compare
+- Try resizing back to the original dimensions to see if the layout recovers
+- Some TUI frameworks have minimum size requirements — going below them can cause artifacts

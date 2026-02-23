@@ -22,6 +22,7 @@ Test Terminal User Interface applications with AI-powered visual analysis.
 
 - **Spawn TUI apps** in headless terminal sessions
 - **Drive interactions** via keystrokes (navigation, input, special keys)
+- **Resize terminal** dynamically to test responsive layouts
 - **Capture state** as text and rendered screenshots
 - **Visual analysis** using AI vision to identify issues
 
@@ -38,6 +39,10 @@ tui_terminal(operation="send_keys", session_id=session_id, keys="hello{ENTER}")
 # Capture screenshot
 capture = tui_terminal(operation="capture", session_id=session_id)
 # Returns: {text, ansi, image_path}
+
+# Resize to test responsive behavior
+tui_terminal(operation="resize", session_id=session_id, rows=20, cols=60)
+resized = tui_terminal(operation="capture", session_id=session_id)
 
 # Clean up
 tui_terminal(operation="close", session_id=session_id)
